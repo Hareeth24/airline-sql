@@ -1,3 +1,5 @@
 fpdf
 mysql-connector-python
 streamlit
+pymongo
+streamlit
