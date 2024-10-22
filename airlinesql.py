@@ -72,19 +72,21 @@ def login():
     password = st.text_input("Password", type="password", key='login_password')
 
     if st.button('Login', key='login_button', use_container_width=True):
-        db = create_connection()
-        users_collection = db.users  # Change to your collection name
-        user = users_collection.find_one({"username": username, "password": password})
-        if user:
-            st.session_state['current_user'] = {'username': user['username'], 'role': user['role']}
-            st.success(f"Logged in as {username}")
-            # Navigate to the appropriate page based on user role
-            if user['role'] == 'admin':
-                st.session_state['page'] = 'admin_dashboard'  # Admin goes to dashboard
-            else:
-                st.session_state['page'] = 'book_flight'  # User goes to booking page
+        # Check if the user is an admin
+        if username == "admin" and password == "admin1234":
+            st.session_state['current_user'] = {'username': username, 'role': 'admin'}
+            st.success(f"Logged in as Admin")
+            st.session_state['page'] = 'admin_dashboard'  # Admin goes to dashboard
         else:
-            st.error("Invalid credentials!")
+            db = create_connection()
+            users_collection = db.users  # Change to your collection name
+            user = users_collection.find_one({"username": username, "password": password})
+            if user:
+                st.session_state['current_user'] = {'username': user['username'], 'role': user['role']}
+                st.success(f"Logged in as {username}")
+                st.session_state['page'] = 'book_flight'  # User goes to booking page
+            else:
+                st.error("Invalid credentials!")
 
 # Admin functionalities
 def admin_dashboard():
