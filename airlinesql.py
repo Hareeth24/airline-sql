@@ -9,36 +9,6 @@ def create_connection():
     db = client.airline_management  # Change to your database name
     return db
 
-# Function to insert default users
-def insert_default_users():
-    db = create_connection()
-    users_collection = db.users  # Change to your collection name
-
-    # Admin user
-    admin_user = {
-        "username": "admin",
-        "password": "admin123",  # Use plain text for now; consider hashing in production
-        "role": "admin"
-    }
-
-    # Additional users
-    additional_users = [
-        {"username": "user1", "password": "password1", "role": "user"},
-        {"username": "user2", "password": "password2", "role": "user"},
-        {"username": "user3", "password": "password3", "role": "user"},
-        {"username": "user4", "password": "password4", "role": "user"},
-        {"username": "user5", "password": "password5", "role": "user"}
-    ]
-
-    # Insert admin user
-    users_collection.insert_one(admin_user)
-    print(f"Admin user '{admin_user['username']}' added.")
-
-    # Insert additional users
-    for user in additional_users:
-        users_collection.insert_one(user)
-        print(f"User '{user['username']}' added.")
-
 # Custom CSS for colors and design
 st.markdown("""
     <style>
@@ -76,9 +46,6 @@ if 'current_user' not in st.session_state:
 if 'page' not in st.session_state:
     st.session_state['page'] = 'register_or_login'
 
-# Insert default users (run this line once to insert users into the database)
-# insert_default_users()  # Uncomment this line to insert users
-
 # Registration form
 def registration():
     st.markdown('<p class="title">User Registration</p>', unsafe_allow_html=True)
@@ -111,7 +78,11 @@ def login():
         if user:
             st.session_state['current_user'] = {'username': user['username'], 'role': user['role']}
             st.success(f"Logged in as {username}")
-            st.session_state['page'] = 'book_flight'  # Redirect to booking page after login
+            # Navigate to the appropriate page based on user role
+            if user['role'] == 'admin':
+                st.session_state['page'] = 'admin_dashboard'  # Admin goes to dashboard
+            else:
+                st.session_state['page'] = 'book_flight'  # User goes to booking page
         else:
             st.error("Invalid credentials!")
 
@@ -138,7 +109,7 @@ def admin_dashboard():
         st.markdown('<p class="subtitle">Available Flights</p>', unsafe_allow_html=True)
         for flight in flights:
             st.write(f"Flight: {flight['flight_name']}, Departure: {flight['departure']}, Arrival: {flight['arrival']}, Seats: {flight['seats']}")
-
+    
 # Booking function for users
 def book_flight():
     st.markdown('<p class="subtitle">Book a Flight</p>', unsafe_allow_html=True)
