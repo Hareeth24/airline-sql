@@ -1,17 +1,13 @@
 import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
-import mysql.connector
+from pymongo import MongoClient
 
 # Set up the database connection
 def create_connection():
-    connection = mysql.connector.connect(
-        host='localhost',          # Change as needed
-        user='root',      # Change to your database username
-        password='hareeth#6@18',   # Change to your database password
-        database='airline_management' # Change to your database namz 
-    )
-    return connection
+    client = MongoClient("mongodb+srv://arjun:hareeth24@clusterariline.tspcv.mongodb.net/?retryWrites=true&w=majority&appName=Clusterariline")
+    db = client.airline_management  # Change to your database name
+    return db
 
 # Custom CSS for colors and design
 st.markdown("""
@@ -55,22 +51,17 @@ def registration():
     st.markdown('<p class="title">User Registration</p>', unsafe_allow_html=True)
     username = st.text_input("Username", key='register_username')
     password = st.text_input("Password", type="password", key='register_password')
-    
+
     if st.button('Register', key='register_button', use_container_width=True):
         if username and password:
-            connection = create_connection()
-            cursor = connection.cursor()
-            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-            if cursor.fetchone():
+            db = create_connection()
+            users_collection = db.users  # Change to your collection name
+            if users_collection.find_one({"username": username}):
                 st.error(f"User '{username}' already exists! Please sign in.")
             else:
-                cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
-                               (username, password, 'user'))
-                connection.commit()
+                users_collection.insert_one({"username": username, "password": password, "role": 'user'})
                 st.success(f"User '{username}' registered successfully!")
                 st.session_state['page'] = 'login'  # Redirect to login page after registration
-            cursor.close()
-            connection.close()
         else:
             st.error("Please fill out all fields.")
 
@@ -79,65 +70,54 @@ def login():
     st.markdown('<p class="title">Sign In</p>', unsafe_allow_html=True)
     username = st.text_input("Username", key='login_username')
     password = st.text_input("Password", type="password", key='login_password')
-    
+
     if st.button('Login', key='login_button', use_container_width=True):
-        connection = create_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
-        user = cursor.fetchone()
+        db = create_connection()
+        users_collection = db.users  # Change to your collection name
+        user = users_collection.find_one({"username": username, "password": password})
         if user:
-            st.session_state['current_user'] = {'username': user[1], 'role': user[3]}  # Assuming username is at index 1 and role at index 3
+            st.session_state['current_user'] = {'username': user['username'], 'role': user['role']}
             st.success(f"Logged in as {username}")
             st.session_state['page'] = 'book_flight'  # Redirect to booking page after login
         else:
             st.error("Invalid credentials!")
-        cursor.close()
-        connection.close()
 
 # Admin functionalities
 def admin_dashboard():
     st.markdown('<p class="subtitle">Admin Dashboard</p>', unsafe_allow_html=True)
-    
+
     flight_name = st.text_input("Flight Name")
     departure = st.text_input("Departure Location")
     arrival = st.text_input("Arrival Location")
     seats = st.number_input("Number of Seats", min_value=1, max_value=500, value=100)
 
     if st.button('Add Flight', key='add_flight', use_container_width=True):
-        connection = create_connection()
-        cursor = connection.cursor()
-        cursor.execute("INSERT INTO flights (flight_name, departure, arrival, seats) VALUES (%s, %s, %s, %s)",
-                       (flight_name, departure, arrival, seats))
-        connection.commit()
+        db = create_connection()
+        flights_collection = db.flights  # Change to your collection name
+        flights_collection.insert_one({"flight_name": flight_name, "departure": departure, "arrival": arrival, "seats": seats})
         st.success(f"Flight '{flight_name}' added successfully!")
-        cursor.close()
-        connection.close()
 
     # Display available flights
-    connection = create_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM flights")
-    flights = cursor.fetchall()
+    db = create_connection()
+    flights_collection = db.flights  # Change to your collection name
+    flights = flights_collection.find()
     if flights:
         st.markdown('<p class="subtitle">Available Flights</p>', unsafe_allow_html=True)
         for flight in flights:
-            st.write(f"Flight: {flight[1]}, Departure: {flight[2]}, Arrival: {flight[3]}, Seats: {flight[4]}")
-    cursor.close()
-    connection.close()
-
+            st.write(f"Flight: {flight['flight_name']}, Departure: {flight['departure']}, Arrival: {flight['arrival']}, Seats: {flight['seats']}")
+    
 # Booking function for users
 def book_flight():
     st.markdown('<p class="subtitle">Book a Flight</p>', unsafe_allow_html=True)
-    
-    connection = create_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM flights")
-    flights = cursor.fetchall()
-    
+
+    db = create_connection()
+    flights_collection = db.flights  # Change to your collection name
+    flights = flights_collection.find()
+
     if flights:
-        flight_options = [flight[1] for flight in flights]  # Assuming flight name is at index 1
+        flight_options = [flight['flight_name'] for flight in flights]  # Assuming flight name is a key
         selected_flight = st.selectbox("Select a Flight", flight_options)
-        
+
         passenger_name = st.text_input("Passenger Name")
         age = st.number_input("Passenger Age", min_value=1, max_value=120, value=25)
         travel_date = st.date_input("Date of Travel", min_value=datetime.today())
@@ -156,15 +136,13 @@ def book_flight():
                 st.error("Please enter both 'From Location' and 'To Location'.")
     else:
         st.error("No flights available to book. Please check back later or contact the admin.")
-    cursor.close()
-    connection.close()
 
 # Function to generate PDF tickets
 def generate_ticket(passenger_name, age, travel_date, flight_name, from_location, to_location, num_tickets):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    
+
     pdf.cell(200, 10, txt=f"Flight Ticket", ln=True, align="C")
     pdf.cell(200, 10, txt=f"Passenger: {passenger_name}", ln=True, align="L")
     pdf.cell(200, 10, txt=f"Age: {age}", ln=True, align="L")
