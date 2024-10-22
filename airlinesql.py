@@ -6,10 +6,11 @@ import mysql.connector
 # Set up the database connection
 def create_connection():
     connection = mysql.connector.connect(
-        host='localhost:3306',          # Change as needed
+        host='localhost',          # Change as needed
         user='root',      # Change to your database username
         password='hareeth#6@18',   # Change to your database password
-        database='airline_management'  # Change to your database name
+        database='airline_management',  # Change to your database name
+        port=3306  
     )
     return connection
 
